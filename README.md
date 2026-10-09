@@ -572,6 +572,84 @@ Arrow Lake / Panther Lake / Wildcat Lake / Bartlett Lake / Nova Lake,以及 Arc 
 
 ## 架构
 
+### 分层示意
+
+```mermaid
+flowchart TB
+    subgraph caller["调用方 · 任何能加载 DLL 的语言"]
+        c1["C / C++ 应用"]
+        c2["C# · Python · Go · AHK"]
+        c3["hwprobe-cli"]
+    end
+
+    subgraph dll["hwprobe-dll · cdylib"]
+        abi["C ABI 导出层 · 18 个函数<br/>每个导出被 guard 包住 catch_unwind"]
+        cb["你注册的订阅回调"]
+    end
+
+    subgraph core["hwprobe-core"]
+        reg["Registry<br/>后台轮询线程 + TTL 缓存 + 逐传感器状态"]
+        hub["SubscriptionHub<br/>轮询后按节拍派发动态快照"]
+        model["数据模型<br/>Category → Device → Sensor"]
+        util["smbios · intel_id · logbuf"]
+    end
+
+    subgraph prov["platform/windows · 9 类 provider"]
+        p1["cpu · memory · gpu"]
+        p2["disk · net · battery"]
+        p3["motherboard · display · imu"]
+        p4["pdh · smbus · msi_wmi · msi_ec · device_profile"]
+    end
+
+    subgraph drv["driver · 内核增强层"]
+        hw["HwAccess trait"]
+        pawn["PawnIO · 优先"]
+        win0["WinRing0 · 回退"]
+    end
+
+    os["Windows 用户态数据源<br/>WMI · PDH · DXGI · NVML · ADLX · IGCL"]
+    kernel["内核与硬件<br/>MSR · PCI · NVMe · SuperIO · ACPI EC"]
+
+    c1 --> abi
+    c2 --> abi
+    c3 --> abi
+    abi --> reg
+    reg --> model
+    reg --> hub
+    reg --> prov
+    util -.辅助.-> prov
+    prov --> model
+    prov --> os
+    prov -.增强.-> hw
+    hw --> pawn
+    hw --> win0
+    pawn --> kernel
+    win0 --> kernel
+    hub -. on_update 推送 .-> cb
+```
+
+### 采样与推送时序
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as 轮询线程
+    participant P as Provider
+    participant R as Registry 快照
+    participant H as SubscriptionHub
+    participant U as 订阅方回调
+
+    T->>T: tick() 检查每个 provider 是否到期,默认 TTL 1000ms
+    T->>P: refresh(),外层 catch_unwind 隔离 panic
+    P-->>T: 新读数
+    T->>R: 拿写锁替换快照,逐传感器写状态
+    T->>H: 到节拍才触发
+    H->>U: on_update(动态快照)
+    Note over R: 读侧只拿读锁,调用方永远不阻塞
+```
+
+### 模块布局
+
 ```
 hwprobe-core   数据模型(Category → Device → Sensor)+ PlatformBackend/Provider trait
                + Registry(后台轮询线程 + TTL 缓存 + per-sensor 状态)
