@@ -1,0 +1,42 @@
+# Windows is the primary development platform; keep line endings predictable so
+# that .ps1 files (which Windows PowerShell 5.1 parses) and .rs/.md files behave
+# the same regardless of each contributor's core.autocrlf.
+* text=auto eol=lf
+
+# Rust, docs and config: always LF.
+*.rs      text eol=lf
+*.toml    text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+
+# C / C++ and headers: LF is fine for MSVC and keeps diffs clean.
+*.c       text eol=lf
+*.h       text eol=lf
+
+# PowerShell: CRLF. Windows PowerShell 5.1 decodes a BOM-less .ps1 as the ANSI
+# code page, so non-ASCII literals in these files must also stay out — see
+# tool/fetch_assets.ps1, which is deliberately ASCII-only.
+*.ps1     text eol=crlf
+
+# Batch files and makefiles.
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+Makefile  text eol=lf
+
+# Binary assets: never touch, never diff.
+*.exe     binary
+*.dll     binary
+*.lib     binary
+*.sys     binary
+*.bin     binary
+*.pdb     binary
+*.ico     binary
+*.png     binary
+*.jpg     binary
+*.ttf     binary
+
+# Keep vendored third-party trees out of language statistics on GitHub.
+crates/amd-adlx/** linguist-vendored
+crates/hwprobe-core/assets/** linguist-vendored

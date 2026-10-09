@@ -1,0 +1,22 @@
+PawnIO_setup.exe — PawnIO 官方安装器(未修改的原版二进制),版本 2.2.0。
+
+来源:
+  https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe
+
+SHA-256:
+  1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032
+  (与 microsoft/winget-pkgs 清单发布的官方哈希一致)
+
+Authenticode 签名:
+  Status = Valid,发布者 CN=namazso.eu (O=namazso),
+  证书指纹 F380DCC9F706E2756A5047B832FFE719E1BC35F5
+
+许可:
+  PawnIO 驱动为 GPL-2.0(附特殊例外:经设备 IOCTL 通信的独立软件不受
+  感染,见上游 COPYING)。hwprobe 对驱动的全部访问均为 DeviceIoControl,
+  属例外允许的独立模块;本安装器以未修改形式随包分发。
+
+用途:
+  供 driver::setup(hwprobe_setup_driver 导出 / hwprobe-cli setup)在
+  用户知情同意(UAC 提权)下以 `-install -silent` 静默安装内核驱动,
+  解锁 CPU 温度/功耗、主板风扇/电压等驱动级传感器。

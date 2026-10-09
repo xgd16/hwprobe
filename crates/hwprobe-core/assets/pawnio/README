@@ -1,0 +1,13 @@
+Signed PawnIO modules from the official repository, belonging to the 0.1.6 release:
+
+https://github.com/namazso/PawnIO.Modules/releases/tag/0.1.6
+
+Included modules (LGPL-2.1, see COPYING):
+- IntelMSR.bin / AMDFamily17.bin —— CPU MSR / AMD SMN 访问(核心温度、功耗)
+- LpcIO.bin —— SuperIO 端口访问(主板风扇、电压、板载温度)
+- LpcACPIEC.bin —— ACPI 嵌入式控制器端口访问(白名单 0x62/0x66;
+  掌机如 MSI Claw 的 EC 风扇转速/温度/模式传感器。
+  字节码取自 LibreHardwareMonitor 0.9.6 Resources/PawnIo,SHA-256 与其
+  lhm 清单一致)
+- SmbusI801.bin / SmbusPIIX4.bin / SmbusNCT6793.bin —— SMBus 控制器
+  (内存 SPD 识别与 DDR4 TSOD / DDR5 SPD5118 温度读取)

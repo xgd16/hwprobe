@@ -1,0 +1,46 @@
+# ---- Rust build output ----
+/target
+
+# Cargo.lock is intentionally committed: this workspace builds binaries
+# (hwprobe.dll, hwprobe-cli.exe), so a locked dependency set means reproducible
+# builds rather than noise.
+
+# ---- Generated DLL drop ----
+# `make` puts hwprobe.dll / hwprobe.lib / hwprobe.h here. All three are build
+# products of `cargo build --release` plus the header already in include/.
+/bin
+
+# ---- Demo build output ----
+examples/cs-demo/bin/
+examples/cs-demo/obj/
+examples/py-demo/__pycache__/
+
+# ---- Fetched (not vendored) binary assets ----
+# The official PawnIO installer is a 3.4 MB signed third-party executable; it is
+# downloaded and hash-verified by tool/fetch_assets.ps1 instead of living in
+# git. See crates/hwprobe-core/assets/PawnIO_setup.README for the source URL,
+# the SHA-256 and the Authenticode publisher.
+crates/hwprobe-core/assets/PawnIO_setup.exe
+
+# ---- Debug symbols ----
+*.pdb
+*.ilk
+
+# ---- Scratch / private tooling ----
+# Local remote-machine helpers and captured hardware dumps; not part of the
+# library and not needed to build or use it.
+/.ssh_tools
+/.zcode
+/.zcodeignore
+lhm.json
+
+# ---- Editor / OS noise ----
+.vs/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
+
+# Transient commit-message file used when preparing this repository.
+/.git-commit-msg.tmp

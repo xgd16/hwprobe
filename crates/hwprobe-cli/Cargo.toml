@@ -1,0 +1,13 @@
+[package]
+name = "hwprobe-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "hwprobe-cli"
+path = "src/main.rs"
+
+[dependencies]
+hwprobe-core = { path = "../hwprobe-core" }
+serde_json = "1"

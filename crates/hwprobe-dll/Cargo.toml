@@ -1,0 +1,13 @@
+[package]
+name = "hwprobe-dll"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "hwprobe"
+crate-type = ["cdylib"]
+
+[dependencies]
+hwprobe-core = { path = "../hwprobe-core" }
+serde_json = "1"

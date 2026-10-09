@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/hwprobe-core",
+    "crates/hwprobe-dll",
+    "crates/hwprobe-cli",
+    "crates/amd-adlx",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["hwprobe"]
+
+[profile.release]
+lto = "thin"
+opt-level = 2
