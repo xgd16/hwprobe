@@ -139,10 +139,22 @@ powershell -ExecutionPolicy Bypass -File tool\fetch_assets.ps1
 
 | 资源 | 用途 | 不拉取的后果 |
 | --- | --- | --- |
-| `assets/PawnIO_setup.exe`(3.4 MB) | PawnIO 官方签名安装器,`hwprobe_setup_driver()` 与 `hwprobe-cli setup` 用它一键装内核驱动 | DLL 照常构建,只是 `hwprobe_setup_driver()` 失败,驱动级传感器降级为 `NO_DRIVER` |
+| `assets/PawnIO_setup.exe`(3.4 MB) | PawnIO 官方签名安装器,`hwprobe_setup_driver()` 与 `hwprobe-cli setup` 用它一键装内核驱动 | 库照常构建;只是驱动级传感器降级为 `NO_DRIVER`,且一键装驱动需要安装器已存在于磁盘 |
 
 脚本会校验 SHA-256、文件大小与 Authenticode 签名(发布者与证书指纹),任何一项不符即中止并删除临时文件。
 来源、哈希与许可见 [`assets/PawnIO_setup.README`](crates/hwprobe-core/assets/PawnIO_setup.README)。
+
+**它在构建时被内嵌,但缺失不会导致编译失败。** `build.rs` 会探测该文件:
+
+- **存在** → 设置 `hwprobe_embedded_pawnio_setup`,安装器被 `include_bytes!` 内嵌进
+  `hwprobe.dll`(产物体积 +3.4 MB)。发布形态零外部依赖,拷走即用。
+- **不存在** → 库照常编译(只有一条 `cargo:warning` 提醒)。此时
+  `hwprobe_setup_driver()` 改为在运行期从磁盘上找安装器,依次尝试:
+  `HWPROBE_PAWNIO_SETUP` 环境变量 → exe 同目录 → 当前工作目录 →
+  `assets/` 与 `crates/hwprobe-core/assets/`。都找不到时返回一条可操作的错误提示。
+
+所以克隆后直接 `cargo build` 永远不会失败;想让产物自带一键装驱动能力,
+就先跑 `fetch_assets` 再构建。
 
 已经随仓库分发的小体积第三方内容(都是官方模块字节码 / 驱动本体,许可文件齐全):
 `assets/pawnio/*.bin`(PawnIO 模块,LGPL-2.1)、`assets/WinRing0x64.sys`(MPL-2.0)、
@@ -617,11 +629,12 @@ crates/amd-adlx  AMD ADLX 官方 Rust 绑定(vendored,MIT)
 - **仅 Windows**(x64)。Linux 后端是接口完备的骨架,尚无实现。
 - **温度、功耗、风扇、电压、内存条温度需要管理员权限 + 内核驱动**。
   不装驱动时这些传感器是 `NO_DRIVER`,其余功能不受影响。
-- **`hwprobe_setup_driver()` 与 `hwprobe-cli setup` 需要仓库里的 PawnIO 安装器**
-  (见「第三方二进制资源」)。未拉取时该功能不可用,但编译不受影响。
+- **`hwprobe_setup_driver()` 与 `hwprobe-cli setup` 需要 PawnIO 安装器**:
+  构建时若 `assets/PawnIO_setup.exe` 存在会被内嵌,否则运行期从磁盘寻找
+  (可用 `HWPROBE_PAWNIO_SETUP` 环境变量指定)。两者都没有时该功能不可用,
+  但**编译不受影响**。
 - **`HWPROBE_NO_DRIVER` 是存在性判断**:设成任何值(包括 `0`)都会跳过驱动加载。
-- **`hwprobe-cli version` 输出的是 ABI 版本,`hwprobe_set_usage_mode` 之后需要等一次刷新**
-  (≤1 秒)才反映到读数上。
+- **`hwprobe_set_usage_mode` 之后需要等一次刷新**(≤1 秒)才反映到读数上。
 - **Intel 代际/GPU 识别表是静态查表**:未收录的型号省略相关字段而不是猜。
 - 首次 `hwprobe_init()` 需要 1~2 秒(枚举 WMI/SMBIOS/DXGI)。
 - `hwprobe_dump_json` 的缓冲区由调用方提供,两段式协议用错了会拿到
