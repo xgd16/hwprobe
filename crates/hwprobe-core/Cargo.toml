@@ -44,4 +44,12 @@ libloading = "0.8"
 raw-cpuid = "11"
 amd-adlx = { path = "../amd-adlx" }
 
+# macOS 后端:薄 sys 绑定(与 Windows 侧的 windows crate 同构),只在 macOS 目标编译。
+# CoreWLAN(ObjC)不走 crate,由 platform/macos/wlan.rs 内的小型 ObjC runtime 桥直接调用。
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+mach2 = "0.7"
+core-foundation-sys = "0.8"
+io-kit-sys = "0.5"
+
 [dev-dependencies]

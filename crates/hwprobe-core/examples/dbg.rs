@@ -1,7 +1,8 @@
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! 诊断:PDH 通配符计数器 + 磁盘描述符原始字节。
 //! 用法: cargo run --release -p hwprobe-cli --example dbg
 
-#![cfg(target_os = "windows")]
 
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_READ, FILE_SHARE_WRITE,
@@ -27,7 +28,7 @@ fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-fn main() {
+pub fn main() {
     unsafe {
         dbg_pd();
         dbg_disk(0);
@@ -154,4 +155,15 @@ unsafe fn dbg_disk(index: u32) {
         );
     }
     windows::Win32::Foundation::CloseHandle(h).ok();
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

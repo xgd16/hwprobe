@@ -3,7 +3,10 @@
 #[cfg(target_os = "windows")]
 pub mod windows;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
+pub mod macos;
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub mod linux;
 
 pub fn create_backend() -> Result<Box<dyn crate::traits::PlatformBackend>, String> {
@@ -11,7 +14,11 @@ pub fn create_backend() -> Result<Box<dyn crate::traits::PlatformBackend>, Strin
     {
         Ok(Box::new(windows::WindowsBackend::new()))
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        Ok(Box::new(macos::MacOSBackend::new()))
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         Ok(Box::new(linux::LinuxBackend::new()))
     }

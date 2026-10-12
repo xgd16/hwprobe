@@ -1,6 +1,7 @@
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! 临时验证:AMD GPU util_gpu_pct 在连续 refresh 下是否持续更新。
 //! 用法: cargo run -p hwprobe-core --example dbg_adlx_util
-#![cfg(target_os = "windows")]
 
 use hwprobe_core::model::{SensorData, Value};
 use hwprobe_core::platform::windows::gpu::GpuProvider;
@@ -22,7 +23,7 @@ fn show(s: Option<&SensorData>) -> String {
     }
 }
 
-fn main() {
+pub fn main() {
     unsafe {
         use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
         let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
@@ -57,4 +58,15 @@ fn main() {
         }
         std::thread::sleep(Duration::from_millis(1000));
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

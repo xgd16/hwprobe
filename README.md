@@ -1,13 +1,14 @@
 # hwprobe
 
 > 类 HWiNFO 的硬件信息与传感器库,以 C ABI 动态链接库形式提供。
-> 一个 `hwprobe.dll`,任何语言都能调 —— 免安装,拷走即用。
+> 一个 `hwprobe.dll`(macOS 上是 `libhwprobe.dylib`),任何语言都能调 —— 免安装,拷走即用。
 
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D4?logo=windows&logoColor=white)](#支持范围)
+[![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20(Apple%20Silicon%20%2F%20Intel)-000000?logo=apple&logoColor=white)](#支持范围)
 [![Rust](https://img.shields.io/badge/Rust-edition%202021-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![ABI](https://img.shields.io/badge/C%20ABI-v4-blue)](#c-api-速览)
+[![ABI](https://img.shields.io/badge/C%20ABI-v5-blue)](#c-api-速览)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-34%20passing-brightgreen)](#开发与测试)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#开发与测试)
 
 `hwprobe.dll` 提供 **CPU / 内存 / GPU / 硬盘 / 网卡 / 电池 / 主板(含 BIOS) /
 显示器 / 惯性传感器(IMU)** 九类硬件的静态识别与实时动态传感器数据。
@@ -60,33 +61,50 @@ hwprobe 把这些收进一个 DLL 后面:
 | | 状态 |
 | --- | --- |
 | **Windows 10/11 x64** | 完整实现,本仓库主体 |
+| **macOS 12+(Apple Silicon + Intel)** | 完整实现(`platform/macos`),九类全覆盖,全部走用户态公开接口(mach / sysctl / IOKit / AppleSMC / CoreWLAN / CoreGraphics),**无需内核驱动**;逐类差异见「macOS 数据源」 |
 | Linux | **接口已稳定,实现是占位骨架**。`platform/linux.rs` 里的 `StubProvider` 对每个类别返回「尚未实现」,`trait` 层不需要改动即可按 Windows 后端的同构模式逐类落地 |
 
 > 说清楚:Linux 后端目前**不可用**。仓库里保留它是因为 `PlatformBackend` / `Provider`
 > trait 已经把接口定型,新平台实现只需要填 `probe()` 与 `refresh()`。
 
+## 直接下载
+
+不想自己编译,去 [Releases](https://github.com/xgd16/hwprobe/releases) 拿对应平台的压缩包 —— 每个包都自带动态库、C 头文件、CLI、README 与 LICENSE,解压即用:
+
+| 压缩包 | 平台 | 内容 |
+| --- | --- | --- |
+| `hwprobe-*-windows-x64.zip` | Windows 10/11 x64 | `hwprobe.dll` + `hwprobe.lib` + `hwprobe-cli.exe` |
+| `hwprobe-*-macos-arm64.tar.gz` | macOS 12+,Apple Silicon | `libhwprobe.dylib` + `hwprobe-cli` |
+| `hwprobe-*-macos-x64.tar.gz` | macOS 12+,Intel | `libhwprobe.dylib` + `hwprobe-cli` |
+| `hwprobe-*-linux-x64.tar.gz` | Linux x86_64 | `libhwprobe.so` + `hwprobe-cli`(骨架后端) |
+
+发布由 GitHub Actions 自动完成:推送 `v*` 标签即触发全平台编译打包,产物附 `SHA256SUMS` 校验文件。
+
 ## 快速开始
 
 ```bash
-# 1. 取第三方二进制资源(见下文「第三方二进制资源」)
+# 1. 取第三方二进制资源(仅 Windows 需要,见下文「第三方二进制资源」)
 powershell -ExecutionPolicy Bypass -File tool\fetch_assets.ps1
 
 # 2. 构建
 cargo build --release
 
-# 3. 看看自己的机器
+# 3. 看看自己的机器(Windows)
 target\release\hwprobe-cli.exe dump
+#    macOS/Linux:
+target/release/hwprobe-cli dump
 ```
 
 产物:
 
 | 产物 | 说明 |
 | --- | --- |
-| `target/release/hwprobe.dll` | 主 DLL,免安装 |
-| `target/release/hwprobe-cli.exe` | 命令行工具 |
-| `include/hwprobe.h` | C 头文件,与 ABI 严格对应 |
+| `target/release/hwprobe.dll` | 主 DLL,免安装(Windows) |
+| `target/release/libhwprobe.dylib` | 主动态库,免安装(macOS) |
+| `target/release/hwprobe-cli(.exe)` | 命令行工具 |
+| `include/hwprobe.h` | C 头文件,与 ABI 严格对应(两平台同一份) |
 
-`make` 会把 DLL、导入库和头文件一起整理到 `bin/dll/`(需要 GNU make + sh):
+`make` 会把动态库和头文件一起整理到 `bin/dll/`(Windows 另含导入库;需要 GNU make + sh):
 
 ```bash
 make          # == cargo build --release -p hwprobe-dll,产物 → bin/dll/
@@ -124,6 +142,7 @@ crates/
 └── amd-adlx       AMD ADLX 官方 Rust 绑定(vendored,MIT)
 examples/
 ├── cs-demo        C# P/Invoke 示例(含订阅推送)
+├── go-demo        Go purego 动态加载示例(免 cgo,含订阅推送)
 └── py-demo        Python ctypes + Tkinter 仪表盘
 include/hwprobe.h  C 头文件,ABI 的权威定义
 tool/fetch_assets.ps1  拉取并校验第三方二进制资源
@@ -248,6 +267,25 @@ public unsafe struct Reading {
 
 示例还演示了回调委托必须存在 `static` 字段里防止被 GC 回收。
 
+### Go
+
+`examples/go-demo` 是纯 Go 示例(**免 cgo**),用 [purego](https://github.com/ebitengine/purego)
+在运行时动态加载动态库(与 Python ctypes / C# P/Invoke 同一思路),Windows/macOS/Linux 通用:
+
+```bash
+cd examples/go-demo
+go run .               # 打印设备树 + 订阅推送演示
+go run . --all         # 树里包含静态信息传感器(型号/序列号等)
+go run . --stream      # 控制台看推送批次
+go run . --pull        # 拉取模式:每秒重读,只打印变化值
+go run . --json        # 每秒输出 JSON
+```
+
+找库顺序与 py-demo 一致(可执行文件目录 → `target/release/` → `target/debug/` →
+`bin/dll/` → 系统路径),另可用环境变量 `HWPROBE_LIB` 直接指定路径。
+union 同样用 `[96]byte` 接收后按 `value_type` 手工解码;订阅回调用
+`purego.NewCallback` 生成函数指针,回调指针存包级变量保活,回调里只做拷贝入队。
+
 ### Python
 
 `examples/py-demo/hwprobe_demo.py` 是一个 Tkinter 仪表盘(ctypes 绑定),支持:
@@ -260,12 +298,15 @@ python examples/py-demo/hwprobe_demo.py --setup    # 装驱动
 python examples/py-demo/hwprobe_demo.py --no-stream   # 强制走轮询模式
 ```
 
-它自己会在脚本目录、`target/release/`、系统路径里依次找 `hwprobe.dll`。
+它自己会按平台找库(Windows `hwprobe.dll` / macOS `libhwprobe.dylib` / Linux
+`libhwprobe.so`),依次尝试脚本目录、`target/release/`、`target/debug/` 与系统路径。
+C# 示例的 `DllImport("hwprobe")` 同样跨平台:.NET 在 macOS/Linux 自动探测
+`libhwprobe.dylib` / `libhwprobe.so`。
 
 ## C API 速览
 
 完整定义见 [`include/hwprobe.h`](include/hwprobe.h) —— 那是 ABI 的权威来源。
-当前 `HWPROBE_ABI_VERSION == 4`。
+当前 `HWPROBE_ABI_VERSION == 5`。
 
 ### 初始化与全局
 
@@ -333,6 +374,7 @@ int32_t hwprobe_setup_driver(void);   /* 静默安装 PawnIO(UAC),显式调用,�
 | 11 | `HWPROBE_BUFFER_TOO_SMALL` | 输出缓冲区不够(`*len` 回填所需大小) |
 | 12 | `HWPROBE_UNKNOWN` | 未知错误(FFI 边界捕获到 panic 也是这个) |
 | 13 | `HWPROBE_BAD_HANDLE` | 订阅句柄不存在或已取消 |
+| 14 | `HWPROBE_NO_PERMISSION` | 权限不足(ABI 5 起;macOS 上 NVMe SMART 等需要 root 的传感器) |
 
 ### 类别
 
@@ -398,9 +440,14 @@ hwprobe_unsubscribe(h);
 - **各语言注意**:回调对象必须保持引用(C# 委托存 `static` 字段、Python ctypes 回调存变量),
   否则被 GC 回收后原生回调会崩。
 
-参考 `examples/cs-demo`(委托 + fixed buffer 解码)与 `examples/py-demo --stream`(ctypes CFUNCTYPE + 队列)。
+参考 `examples/cs-demo`(委托 + fixed buffer 解码)、`examples/go-demo --stream`(purego.NewCallback + channel)与 `examples/py-demo --stream`(ctypes CFUNCTYPE + 队列)。
 
 ## 内核驱动增强层
+
+> 本节仅适用于 **Windows**。macOS 没有内核驱动层概念 —— 全部传感器走用户态公开
+> 接口(AppleSMC user client / IOKit / CoreWLAN 等),需要特权的是「root 身份」而非
+> 「装驱动」,无权限时按传感器标记 `NO_PERMISSION`。`hwprobe-cli setup` 在 macOS
+> 上只打印说明、不做任何事。
 
 CPU 核心温度/封装功耗、主板风扇转速/电压/温度、内存条温度在 Windows 上**必须**经内核驱动读取。
 初始化时按顺序尝试两个后端,统一抽象为 `HwAccess` trait(MSR 读写 / IO 端口 / PCI 配置 / AMD SMN):
@@ -457,6 +504,9 @@ DDR4 走内存条上的 TSOD(可选件,SPD `0x0E` bit7 标志,SMBus 地址 `0x18
 
 CPU / GPU 占用有两种统计口径,`hwprobe_set_usage_mode` 运行时切换(可在 `init` 前调用)。
 传感器清单与编码不变,只切换取值来源。
+
+> **macOS 上两种口径同源**:CPU/GPU 占用只有时间差分 / IOKit 统计一条通路,
+> `set_usage_mode` 不改变取值来源(调用合法但无效果),不存在 PDH 依赖。
 
 | | 标准(0,默认) | 类任务管理器(1) |
 | --- | --- | --- |
@@ -569,6 +619,40 @@ Arrow Lake / Panther Lake / Wildcat Lake / Bartlett Lake / Nova Lake,以及 Arc 
   (仅在设备 ID 能唯一对应 EU 配置时给出)。
 
 查表未收录的型号直接省略这些字段,**不输出猜测值**。
+
+### macOS 数据源
+
+macOS 后端(`platform/macos`)九类全覆盖,**全部走用户态公开接口,无内核驱动**。
+上文「数据源详解」表格是 Windows 通路;macOS 对应关系:
+
+| 类别 | 静态识别 | 动态值 | 权限 |
+| --- | --- | --- | --- |
+| **CPU** | `sysctl`(品牌串/核数/P-E 簇划分 `hw.perflevel*`/缓存);NPU 经 IORegistry 的 ANE 服务 | 总/逐核占用(`host_processor_info` tick 差分);封装温度(AppleSMC `Tp*/Te*/Tf*` 热敏键取最大值,合理性过滤 + 良值保持) | 免权限 |
+| **内存** | `hw.memsize` | 已用/可用/占用率(`host_statistics64`,任务监视器口径:used = 活跃+内联+压缩) | 免权限 |
+| **GPU** | IOKit `IOAccelerator`(`model`/`vendor-id`/驱动版本/`gpu-core-count`) | 利用率 `Device Utilization %`/`Renderer Utilization %`、显存占用(`In use system memory`)、温度(AppleSMC `Tg*`) | 免权限 |
+| **硬盘** | `IOBlockStorageDevice` 识别(Device/Protocol Characteristics)+ IOMedia 容量 | 活动率/吞吐(`IOBlockStorageDriver Statistics` 差分,Total Time 为纳秒)、NVMe SMART 温度/磨损/写入量(IOKit SMART user client) | SMART 在旧系统需 root → `NO_PERMISSION` |
+| **网卡** | `NET_RT_IFLIST2`(MAC/MTU/接口类型)+ CoreWLAN | 链路/速率/收发吞吐(差分)/错误计数 + WiFi 关联细节(RSSI/信道/协商速率/加密) | 免权限;**SSID/BSSID 需定位权限**(否则该字段缺失) |
+| **电池** | `AppleSmartBattery` + `BatteryData`(设计容量/循环次数/序列号) | 电量/电压/充放状态/速率/健康度(IOPowerSources + AppleSmartBattery) | 免权限 |
+| **主板** | `IOPlatformExpertDevice`(型号标识 `Mac14,9`/序列号/机型号) | 风扇转速(SMC `FNum`+`F{i}Ac`)、WiFi 模块温度(`TW0P`)、整机功耗(`PSTR`)/DC-In 功率(`PDTR`) | 免权限 |
+| **显示器** | CoreGraphics + EDID(型号/厂商/序列/接口) | 分辨率/刷新率(`CGDisplayModeGetRefreshRate`,返回 0 的模式回退 CoreVideo 标称值,再拿不到就标 `NOT_SUPPORTED`) | 免权限 |
+| **IMU** | — | **Apple Silicon 无运动传感器**;仅 2004-2010 老 Intel Mac 有 Sudden Motion Sensor(读取协议未实现时如实报错,不挂空壳) | — |
+
+macOS 侧如实省略的项目(**宁缺不假**,无用户态来源或来源不可靠):
+- **CPU 逐核实时频率**:Apple Silicon 连标称值 sysctl 都没有,不声明 `freq_core_*`
+  (Intel Mac 有 `hw.cpufrequency` 标称值,声明并标注 `(Nominal)`)。
+- **CPU 封装功耗 `power_pkg`**:AS 的能耗计数走 IOReport 私有接口(macOS 27 起还需
+  私有 entitlement),无用户态来源。整机功耗 `PSTR` 在主板类别可用。
+- **逐核温度 `temperature_core_*`**:SMC 键随代际变化且社区映射不完全可靠
+  (实测 M2 Pro 上表列 8 个"P 核键"而物理 P 核只有 6 个)。仅当「表内键数 == 物理核数」
+  严格成立时才做逐核标注,否则只给 `temperature_pkg`。
+- **DIMM 明细/内存条温度**:macOS 不暴露 SMBIOS Type 17,Apple Silicon 全是板载内存。
+- **commit charge、GPU 分引擎占用、GPU 功耗/风扇**:无对应数据源。
+- **语义不明的 SMC 键一律不用**(如 `TVM*`/`TRD*`/`TPD*`,实测存在但无可靠文档);
+  只采用有公开语义且经负载实验验证的键(如 `PSTR`/`PDTR`/`F{i}Ac`)。
+
+键位表与系统接口的调研记录(含来源 URL、本机实测值与实测勘误)存档于
+[docs/smc-keys-research.md](docs/smc-keys-research.md) 与
+[docs/macos-iokit-research.md](docs/macos-iokit-research.md)。
 
 ## 架构
 
@@ -704,7 +788,17 @@ crates/amd-adlx  AMD ADLX 官方 Rust 绑定(vendored,MIT)
 
 ## 已知限制
 
-- **仅 Windows**(x64)。Linux 后端是接口完备的骨架,尚无实现。
+**通用**
+
+- **仅 Windows(x64)与 macOS 12+**。Linux 后端是接口完备的骨架,尚无实现。
+- **`hwprobe_set_usage_mode` 之后需要等一次刷新**(≤1 秒)才反映到读数上。
+- **Intel 代际/GPU 识别表是静态查表**:未收录的型号省略相关字段而不是猜。
+- 首次 `hwprobe_init()` 需要 1~2 秒(枚举 WMI/SMBIOS/DXGI 或 IOKit)。
+- `hwprobe_dump_json` 的缓冲区由调用方提供,两段式协议用错了会拿到
+  `HWPROBE_BUFFER_TOO_SMALL`。
+
+**Windows**
+
 - **温度、功耗、风扇、电压、内存条温度需要管理员权限 + 内核驱动**。
   不装驱动时这些传感器是 `NO_DRIVER`,其余功能不受影响。
 - **`hwprobe_setup_driver()` 与 `hwprobe-cli setup` 需要 PawnIO 安装器**:
@@ -712,11 +806,17 @@ crates/amd-adlx  AMD ADLX 官方 Rust 绑定(vendored,MIT)
   (可用 `HWPROBE_PAWNIO_SETUP` 环境变量指定)。两者都没有时该功能不可用,
   但**编译不受影响**。
 - **`HWPROBE_NO_DRIVER` 是存在性判断**:设成任何值(包括 `0`)都会跳过驱动加载。
-- **`hwprobe_set_usage_mode` 之后需要等一次刷新**(≤1 秒)才反映到读数上。
-- **Intel 代际/GPU 识别表是静态查表**:未收录的型号省略相关字段而不是猜。
-- 首次 `hwprobe_init()` 需要 1~2 秒(枚举 WMI/SMBIOS/DXGI)。
-- `hwprobe_dump_json` 的缓冲区由调用方提供,两段式协议用错了会拿到
-  `HWPROBE_BUFFER_TOO_SMALL`。
+
+**macOS**
+
+- **无内核驱动层,但个别传感器需要 root**:NVMe SMART 在旧系统/部分驱动上
+  需要 root(本机 macOS 27 实测普通用户可读),无权限时标 `NO_PERMISSION`。
+- **WiFi 的 SSID/BSSID 需要定位权限**:无权限时 CoreWLAN 返回 nil,
+  这两个字段缺失;RSSI/信道/速率等不受影响。
+- **无 CPU 逐核实时频率与封装功耗**(AS 无用户态来源);逐核温度仅在
+  温度键数量与物理核数严格一致时才标注(详见「macOS 数据源」)。
+- **Boot ROM 版本无用户态来源**(系统报告走私有 SPI),主板类别省略 BIOS 字段。
+- **IMU 仅老 Intel Mac 有硬件**,且 Sudden Motion Sensor 读取协议未实现。
 
 ## 第三方组件与许可
 
@@ -737,16 +837,19 @@ hwprobe 对 PawnIO 驱动的全部访问均为 `DeviceIoControl`,属官方例外
 
 ```bash
 cargo build --release     # 构建全部
-cargo test                # 34 个单元测试,主要是 SMBIOS 解析
-make                      # 构建 DLL 并把产物整理到 bin/dll/
+cargo test                # 单元测试:SMBIOS 解析 + 各平台纯逻辑(单位换算/解码/回归用例)
+make                      # 构建动态库并把产物整理到 bin/dll/
+                          # (Windows: hwprobe.dll + hwprobe.lib;macOS: libhwprobe.dylib)
 ```
 
 测试集中在可离线验证的纯逻辑上,尤其是 SMBIOS 解析器 —— 它有一个专门的回归用例
 `zero_string_struct_does_not_desync`:没有字符串结构的 Type 17 在表里是一个裸的双 NUL,
 早期实现只跳 1 字节,导致把第二个 NUL 当成下一个结构的类型字节,整段内存条信息错位丢失。
+macOS 侧的电池单位换算(mAh×mV/1000、放电率符号约定、温度 0.1K 解码)也有单测锚定。
 
 `crates/hwprobe-core/examples/` 下有一批 `dbg*.rs` 一次性探针,用来单独验证某个数据源
-(ADLX 利用率、SuperIO、MSI WMI 等),不属于库的一部分。
+(ADLX 利用率、SuperIO、MSI WMI、SMC 键枚举 `dbg_mac_smc` 等),不属于库的一部分;
+Windows 专用探针在其他平台编译为空壳 main,不影响 `cargo test`。
 
 欢迎 Issue 与 PR。改动传感器时请保持两条底线:**宁可缺数据也不给假数据**,
 以及**单个数据源故障不拖垮其他类别**。

@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! SATA SMART 透传诊断:IOCTL_ATA_PASS_THROUGH vs IOCTL_SCSI_PASS_THROUGH
 use windows::Win32::Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE};
 use windows::Win32::Storage::FileSystem::{
@@ -290,7 +291,7 @@ fn dump_smart(data: &[u8]) {
     }
 }
 
-fn main() {
+pub fn main() {
     let count = 4; // pd0..pd3
     for index in 0..count {
         ata_variant(index);
@@ -299,4 +300,15 @@ fn main() {
         query_variant(index, 2, 0xE0, "LOG E0"); // AtaDataTypeLogPage,SMART 数据
         println!("----");
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

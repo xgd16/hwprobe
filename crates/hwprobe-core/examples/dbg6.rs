@@ -1,5 +1,6 @@
-#![cfg(target_os = "windows")]
-fn main() {
+#[cfg(target_os = "windows")]
+mod win_probe {
+pub fn main() {
     use windows::Win32::System::SystemInformation::{GetSystemFirmwareTable, FIRMWARE_TABLE_PROVIDER};
     unsafe {
         let provider = FIRMWARE_TABLE_PROVIDER(u32::from_be_bytes(*b"RSMB"));
@@ -24,4 +25,15 @@ fn main() {
             Err(e) => println!("parse err: {e}"),
         }
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

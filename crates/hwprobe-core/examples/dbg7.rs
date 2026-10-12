@@ -1,5 +1,6 @@
-#![cfg(target_os = "windows")]
-fn main() {
+#[cfg(target_os = "windows")]
+mod win_probe {
+pub fn main() {
     println!("stage: create_backend");
     let mut backend = hwprobe_core::create_backend().unwrap();
     println!("stage: init ({:?})", std::env::var_os("HWPROBE_NO_DRIVER").is_some());
@@ -15,4 +16,15 @@ fn main() {
         }
     }
     println!("ALL DONE");
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

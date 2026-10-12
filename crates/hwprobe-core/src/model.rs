@@ -90,6 +90,8 @@ pub enum Status {
     Unknown = 12,
     /// 订阅句柄不存在(或已取消)
     BadHandle = 13,
+    /// 权限不足(如 macOS 上 NVMe SMART、部分 SMC 键需要 root)
+    NoPermission = 14,
 }
 
 impl Status {
@@ -108,6 +110,7 @@ impl Status {
             10 => Status::Error,
             11 => Status::BufferTooSmall,
             13 => Status::BadHandle,
+            14 => Status::NoPermission,
             _ => Status::Unknown,
         }
     }

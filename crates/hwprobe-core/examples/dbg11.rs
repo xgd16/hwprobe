@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! SuperIO 芯片探测诊断:在两个配置槽位上尝试各厂商进入序列并读芯片 ID。
 use hwprobe_core::platform::windows::driver;
 
@@ -20,7 +21,7 @@ fn dump_crs(drv: &dyn driver::HwAccess, reg_port: u16, val_port: u16, tag: &str)
     println!("    [{tag}]{s}");
 }
 
-fn main() {
+pub fn main() {
     match driver::try_init() {
         Ok(()) => println!("驱动初始化 OK"),
         Err(e) => {
@@ -85,4 +86,15 @@ fn main() {
         wr(drv, val_port, 0x02);
     }
     println!("DONE");
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

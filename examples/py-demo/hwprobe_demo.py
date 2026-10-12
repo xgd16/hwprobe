@@ -30,8 +30,13 @@ from collections import namedtuple
 from datetime import datetime
 from pathlib import Path
 
-import tkinter as tk
-from tkinter import ttk, messagebox
+try:
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+except ImportError:  # 无 Tk 的环境(精简 Python/无头服务器):仅 GUI 模式不可用
+    tk = None
+    ttk = None
+    messagebox = None
 
 # ---------- 常量(与 include/hwprobe.h 严格对应) ----------
 HWPROBE_ALL_CATEGORIES = 0xFFFFFFFF
@@ -45,7 +50,7 @@ STATUS_NAME = {
     0: "OK", 1: "等待首刷", 2: "未初始化", 3: "初始化失败",
     4: "参数无效", 5: "类别无效", 6: "设备无效", 7: "传感器无效",
     8: "无驱动", 9: "不支持", 10: "错误", 11: "缓冲不足", 12: "未知",
-    13: "句柄无效",
+    13: "句柄无效", 14: "无权限",
 }
 
 # ---------- 结构体(契约:首字段 size 必须写 sizeof) ----------
@@ -91,17 +96,29 @@ def cstr(b):
     return b.split(b"\0", 1)[0].decode("utf-8", "replace")
 
 def load_dll():
+    # 跨平台库名:Windows=hwprobe.dll,macOS=libhwprobe.dylib,Linux=libhwprobe.so
+    if sys.platform == "win32":
+        names = ["hwprobe.dll"]
+        loader = C.WinDLL
+    elif sys.platform == "darwin":
+        names = ["libhwprobe.dylib"]
+        loader = C.CDLL
+    else:
+        names = ["libhwprobe.so"]
+        loader = C.CDLL
     here = Path(__file__).resolve().parent
-    candidates = [here / "hwprobe.dll",
-                  here / ".." / ".." / "target" / "release" / "hwprobe.dll"]
+    candidates = [here / n for n in names]
+    candidates += [here / ".." / ".." / "target" / "release" / n for n in names]
+    candidates += [here / ".." / ".." / "target" / "debug" / n for n in names]
     for p in candidates:
         if p.is_file():
-            try:
-                os.add_dll_directory(str(p.parent))
-            except OSError:
-                pass
-            return C.WinDLL(str(p))
-    return C.WinDLL("hwprobe.dll")  # 交给系统搜索路径
+            if sys.platform == "win32":
+                try:
+                    os.add_dll_directory(str(p.parent))
+                except OSError:
+                    pass
+            return loader(str(p))
+    return loader(names[0])  # 交给系统搜索路径
 
 def bind(dll):
     dll.hwprobe_abi_version.restype = C.c_uint32
@@ -283,7 +300,7 @@ def loop_stream(dll, seconds=None):
             ok_n = sum(1 for _, _, st in items if st == 0)
             samples = [f"{t}" for _, t, st in items if st == 0][:6]
             print(f"#{seq} {datetime.fromtimestamp(ts / 1000):%H:%M:%S}.{ts % 1000:03d}"
-                  f" —— {len(items)} 项(OK {ok_n}): " + " | ".join(samples))
+                  f" —— {len(items)} 项(OK {ok_n}): " + " | ".join(samples), flush=True)
             if deadline and time.time() >= deadline:
                 break
     except KeyboardInterrupt:
@@ -478,6 +495,11 @@ def loop_json(dll):
 # ---------------- 入口 ----------------
 
 def run_tk(dll, show_static, use_stream=True):
+    if tk is None:
+        print("本 Python 环境没有 tkinter(缺 _tkinter),无法启动图形界面;", file=sys.stderr)
+        print("请改用 --json / --stream 模式,或换用带 Tk 的 Python(python.org 安装包自带)。",
+              file=sys.stderr)
+        sys.exit(1)
     try:
         C.windll.shcore.SetProcessDpiAwareness(1)  # 高分屏清晰显示,失败则忽略
     except Exception:

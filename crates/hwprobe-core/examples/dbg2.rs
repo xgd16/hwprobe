@@ -1,5 +1,6 @@
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! 诊断:PDH 索引翻译链
-#![cfg(target_os = "windows")]
 use windows::Win32::System::Performance::*;
 
 fn wide0(s: &str) -> Vec<u16> { s.encode_utf16().chain(std::iter::once(0)).collect() }
@@ -30,7 +31,7 @@ fn lookup_name(index: u32) -> Option<String> {
     }
 }
 
-fn main() {
+pub fn main() {
     unsafe {
         println!("== Processor ==");
         let oi = lookup_index("Processor");
@@ -75,4 +76,15 @@ fn main() {
             }
         }
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

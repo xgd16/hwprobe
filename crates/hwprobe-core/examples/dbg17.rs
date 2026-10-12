@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! RAPL 能量域扫描(需管理员):确认本机 CPU 暴露哪些功耗域,
 //! 特别是是否存在可用于"内存功耗"的 DRAM 域(MSR 0x619),
 //! 并用内存负载验证该计数确实随内存活动变化(而非恒定/复用计数)。
@@ -18,7 +19,7 @@ const DOMAINS: [(&str, u32); 5] = [
     ("PSys (0x64D)", 0x64D),
 ];
 
-fn main() {
+pub fn main() {
     let args: Vec<String> = std::env::args().collect();
     let with_load = args.iter().any(|a| a == "--load");
     let seconds: f64 = args
@@ -116,4 +117,15 @@ fn fmt(v: Option<u64>) -> String {
         Some(x) => format!("0x{x:016X}"),
         None => "读取失败(MSR 不存在或被拒)".to_string(),
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

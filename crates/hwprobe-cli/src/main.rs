@@ -66,28 +66,41 @@ fn main() {
 
 /// 一键安装 PawnIO 驱动增强层(内置官方安装器,UAC 提权 + 静默安装),
 /// 随后验证驱动层在本进程是否可用。
+///
+/// 非 Windows 平台没有内核驱动增强层(macOS 传感器全部走用户态接口),
+/// 该命令仅打印说明,不做任何事。
 fn cmd_setup() {
-    use hwprobe_core::platform::windows::driver;
-
     println!("== hwprobe 驱动增强层安装 ==");
-    if driver::pawnio_installed() {
-        println!("PawnIO:已安装,无需重复安装");
-    } else {
-        println!("PawnIO:未安装,即将运行内置官方安装器(弹出 UAC,请选择\"是\")…");
-        if let Err(e) = driver::install_pawnio() {
-            eprintln!("PawnIO:安装失败: {e}");
-            eprintln!("也可手动安装: winget install namazso.PawnIO");
-            std::process::exit(1);
+
+    #[cfg(target_os = "windows")]
+    {
+        use hwprobe_core::platform::windows::driver;
+
+        if driver::pawnio_installed() {
+            println!("PawnIO:已安装,无需重复安装");
+        } else {
+            println!("PawnIO:未安装,即将运行内置官方安装器(弹出 UAC,请选择\"是\")…");
+            if let Err(e) = driver::install_pawnio() {
+                eprintln!("PawnIO:安装失败: {e}");
+                eprintln!("也可手动安装: winget install namazso.PawnIO");
+                std::process::exit(1);
+            }
+            println!("PawnIO:安装成功");
         }
-        println!("PawnIO:安装成功");
+
+        match driver::try_init() {
+            Ok(_) => println!("驱动增强层:可用 ✓(CPU 温度/功耗、主板风扇/电压传感器已解锁)"),
+            Err(_) => {
+                eprintln!("驱动增强层:当前进程不可用 —— 访问 PawnIO 需要管理员权限,");
+                eprintln!("请以管理员身份重新运行本命令或调用方程序(温度/风扇/电压方能出值)。");
+            }
+        }
     }
 
-    match driver::try_init() {
-        Ok(_) => println!("驱动增强层:可用 ✓(CPU 温度/功耗、主板风扇/电压传感器已解锁)"),
-        Err(_) => {
-            eprintln!("驱动增强层:当前进程不可用 —— 访问 PawnIO 需要管理员权限,");
-            eprintln!("请以管理员身份重新运行本命令或调用方程序(温度/风扇/电压方能出值)。");
-        }
+    #[cfg(not(target_os = "windows"))]
+    {
+        println!("本平台没有内核驱动增强层 —— 传感器全部走用户态接口,无需安装任何驱动。");
+        println!("(macOS 上部分传感器如 NVMe SMART 需要 root 权限,以 sudo 运行即可解锁。)");
     }
 }
 
@@ -417,6 +430,7 @@ fn status_text(s: hwprobe_core::model::Status) -> String {
         Waiting => "等待首刷".into(),
         NoDriver => "需要驱动".into(),
         NotSupported => "不支持".into(),
+        NoPermission => "无权限".into(),
         Error => "错误".into(),
         other => format!("status={:?}", other),
     }

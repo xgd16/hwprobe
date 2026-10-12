@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! IGCL 温度传感器入口实测(掌机 MSI Claw A1M / Meteor Lake 核显)。
 //!
 //! 背景:`ctlPowerTelemetryGet` 的 `gpuCurrentTemperature.bSupported = false`,
@@ -234,7 +235,7 @@ fn print_item(label: &str, it: &CtlTelemetryItem) {
     }
 }
 
-fn main() {
+pub fn main() {
     unsafe {
         let lib = match Library::new("ControlLib.dll") {
             Ok(l) => l,
@@ -465,4 +466,15 @@ fn main() {
         println!("    V1 caps: {caps:?}");
         println!("    V1 读数: {:?}", hwprobe_core::platform::windows::gpu_igcl::read());
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

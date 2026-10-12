@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 use windows::Win32::System::Performance::*;
 fn wide0(s: &str) -> Vec<u16> { s.encode_utf16().chain(std::iter::once(0)).collect() }
 fn try_add(path: &str) {
@@ -18,10 +19,21 @@ fn try_add(path: &str) {
         let _ = PdhCloseQuery(hq);
     }
 }
-fn main() {
+pub fn main() {
     try_add(r"Memory\Available Bytes");
     try_add(r"System\Processor Queue Length");
     try_add(r"Processor(_Total)\% Processor Time");
     try_add(r"Processor Information(_Total)\% Processor Utility");
     try_add(r"PhysicalDisk(0 C:)\% Disk Time");
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

@@ -1,8 +1,9 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! 0x8637 芯片 BAR 空间寄存器读取(基址 0x730)
 use hwprobe_core::platform::windows::driver;
 
-fn main() {
+pub fn main() {
     let Ok(()) = driver::try_init() else { println!("驱动失败"); return };
     let Some(drv) = driver::access() else { println!("无驱动"); return };
     if !drv.superio_begin(0) { println!("begin 失败"); return }
@@ -28,4 +29,15 @@ fn main() {
     }
     println!();
     println!("DONE");
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

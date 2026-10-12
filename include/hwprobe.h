@@ -136,10 +136,11 @@ extern "C" {
 
 /* ABI 版本:1 = 仅拉取模式;2 = 增加订阅推送(hwprobe_subscribe 等);
  * 3 = 新增 Display(7)/IMU(8)类别;4 = 新增 hwprobe_set_usage_mode
- * (占用口径切换)与 GPU 分引擎传感器 util_eng_*(见下)。
+ * (占用口径切换)与 GPU 分引擎传感器 util_eng_*(见下);
+ * 5 = 新增状态码 HWPROBE_NO_PERMISSION(权限不足)。
  * 新增导出/状态码会递增此值,已有声明保持兼容。
  * 可用 hwprobe_abi_version() 在运行时查询 DLL 实际版本。 */
-#define HWPROBE_ABI_VERSION 4
+#define HWPROBE_ABI_VERSION 5
 
 /* “全部类别”通配值:传给 hwprobe_refresh 表示刷新所有类别;
  * 传给 hwprobe_subscribe 的 category_mask 表示订阅所有类别。 */
@@ -163,6 +164,7 @@ enum {
     HWPROBE_BUFFER_TOO_SMALL = 11,/* 输出缓冲区不够大(*len 会返回所需大小) */
     HWPROBE_UNKNOWN        = 12,  /* 未知错误 */
     HWPROBE_BAD_HANDLE     = 13,  /* 订阅句柄不存在(或已取消) */
+    HWPROBE_NO_PERMISSION  = 14,  /* 权限不足(如 macOS 上 NVMe SMART、部分 SMC 键需要 root) */
 };
 
 /* ---------------------------------------------------------------------------

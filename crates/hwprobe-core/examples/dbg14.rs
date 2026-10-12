@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! root\WMI MSStorageDriver_FailurePredictData 全属性诊断
 use hwprobe_core::platform::windows::shared_wmi_root_wmi;
 
@@ -9,7 +10,7 @@ struct SmartData {
     VendorSpecific: Option<Vec<u8>>,
 }
 
-fn main() {
+pub fn main() {
     let Ok(conn) = shared_wmi_root_wmi() else {
         println!("root\\WMI 连接失败");
         return;
@@ -41,4 +42,15 @@ fn main() {
             );
         }
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

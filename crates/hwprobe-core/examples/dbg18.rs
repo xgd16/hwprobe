@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! 电池设备枚举/打开诊断。
 //!
 //! 背景:Claw A1M 上 provider Battery 报 "电池设备枚举失败(设备存在但打不开)",
@@ -384,7 +385,7 @@ fn cfgmgr_interfaces() -> Vec<String> {
     out
 }
 
-fn main() {
+pub fn main() {
     println!("===== 1) SetupDi 设备接口枚举 (DIGCF_PRESENT|DIGCF_DEVICEINTERFACE) =====");
     let di_paths = setupdi_interfaces();
     println!("  -> {} 个接口路径", di_paths.len());
@@ -458,4 +459,15 @@ fn main() {
         ),
         Err(e) => println!("  GetSystemPowerStatus 失败: {e}"),
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

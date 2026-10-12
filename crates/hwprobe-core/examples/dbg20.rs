@@ -1,4 +1,5 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! 磁盘 SMART 拿取通路实测(免提权 vs 需提权)。
 //!
 //! 背景:provider 的 SATA 温度走 IOCTL_SCSI_PASS_THROUGH(需 GENERIC_READ|WRITE,
@@ -232,7 +233,7 @@ fn dump_nvme_health(log: &[u8]) {
     println!("      Temp Sensor 1 / 2       = {} K / {} K", u16le(200), u16le(202));
 }
 
-fn main() {
+pub fn main() {
     println!("== 免提权(句柄 desired access = 0)的协议专属查询 ==");
     println!("DATA_OFFSET = {DATA_OFFSET}(STORAGE_PROTOCOL_DATA_DESCRIPTOR 头 48 字节)\n");
 
@@ -357,4 +358,15 @@ fn main() {
             let _ = CloseHandle(handle);
         }
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

@@ -1,14 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- 示例以 LTS net8.0 为下限:示例代码不依赖更高版本特性,
+         9/10+ 的 SDK 同样可编译,便于 Windows / macOS 跨平台运行 -->
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>hwprobe-demo</AssemblyName>
     <RootNamespace>HwDemo</RootNamespace>
   </PropertyGroup>
-  <!-- 先在仓库根执行 cargo build release;构建示例时自动把 hwprobe.dll 拷到输出目录 -->
+  <!-- 先在仓库根执行 cargo build(release 配置);构建示例时自动把动态库拷到输出目录 -->
   <Target Name="CopyHwprobeDll" AfterTargets="Build" Condition="Exists('..\..\target\release\hwprobe.dll')">
     <Copy SourceFiles="..\..\target\release\hwprobe.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="CopyHwprobeDylib" AfterTargets="Build" Condition="Exists('..\..\target\release\libhwprobe.dylib')">
+    <Copy SourceFiles="..\..\target\release\libhwprobe.dylib" DestinationFolder="$(OutDir)" />
   </Target>
 </Project>

@@ -162,7 +162,7 @@ public static class Demo
     {
         "OK", "等待首刷", "未初始化", "初始化失败", "参数错误",
         "类别无效", "设备无效", "传感器无效", "需要驱动", "不支持", "错误", "缓冲区不足", "未知",
-        "句柄无效",
+        "句柄无效", "无权限",
     };
     static readonly string[] CategoryText = { "CPU", "Memory", "GPU", "Disk", "Network", "Battery", "Motherboard", "Display", "IMU" };
 

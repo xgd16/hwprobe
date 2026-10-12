@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "hwprobe-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hwprobe-core",
  "serde_json",
@@ -171,10 +171,14 @@ dependencies = [
 
 [[package]]
 name = "hwprobe-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "amd-adlx",
+ "core-foundation-sys",
+ "io-kit-sys",
+ "libc",
  "libloading",
+ "mach2 0.7.0",
  "raw-cpuid",
  "serde",
  "serde_json",
@@ -185,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "hwprobe-dll"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hwprobe-core",
  "serde_json",
@@ -213,6 +217,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "io-kit-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06d3a048d09fbb6597dbf7c69f40d14df4a49487db1487191618c893fc3b1c26"
+dependencies = [
+ "core-foundation-sys",
+ "mach2 0.5.0",
 ]
 
 [[package]]
@@ -253,6 +267,21 @@ name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+
+[[package]]
+name = "mach2"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a1b95cd5421ec55b445b5ae102f5ea0e768de1f82bd3001e11f426c269c3aea"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "mach2"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0d28e293f2b8c9d2b2d1c0193bd3c1cbdc0d2cf396888dc01162f7cf9d6c3f3"
 
 [[package]]
 name = "memchr"

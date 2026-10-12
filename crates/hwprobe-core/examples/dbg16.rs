@@ -1,11 +1,12 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! SMBus SPD / TSOD 原始寄存器扫描(需管理员)。
 //! 用于诊断"为什么没有内存温度":确认 SPD 是否可见、TS 标志位、
 //! 0x18-0x1F 有无温度传感器响应。
 use hwprobe_core::platform::windows::driver;
 use hwprobe_core::platform::windows::smbus;
 
-fn main() {
+pub fn main() {
     if let Err(e) = driver::try_init() {
         println!("驱动不可用: {e}");
     }
@@ -56,4 +57,15 @@ fn main() {
             );
         }
     }
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

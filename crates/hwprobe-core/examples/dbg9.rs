@@ -1,6 +1,7 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 use hwprobe_core::traits::Provider;
-fn main() {
+pub fn main() {
     let mut backend = hwprobe_core::create_backend().unwrap();
     let _ = backend.init();
     for p in backend.providers() {
@@ -11,4 +12,15 @@ fn main() {
         println!("   refresh ok");
     }
     println!("ALL DONE");
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

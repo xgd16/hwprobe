@@ -1,0 +1,155 @@
+# 发布流水线:打 v* 标签 → 自动编译全部支持平台 → 打包 → 创建 GitHub Release。
+#
+# 平台矩阵(与 README「支持范围」一致):
+#   windows-x64  x86_64-pc-windows-msvc   hwprobe.dll + hwprobe.lib + hwprobe-cli.exe
+#   macos-arm64  aarch64-apple-darwin     libhwprobe.dylib + hwprobe-cli
+#   macos-x64    x86_64-apple-darwin      libhwprobe.dylib + hwprobe-cli
+#   linux-x64    x86_64-unknown-linux-gnu libhwprobe.so + hwprobe-cli(骨架后端)
+#
+# 每个平台的产物都是一个自包含压缩包(动态库 + C 头文件 + CLI + README + LICENSE),
+# 另附全量 SHA256SUMS。workflow_dispatch 只跑构建不发布,用于验证流水线。
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            platform: macos-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            platform: macos-x64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: linux-x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry & build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      # 仅 Windows:把 PawnIO 安装器拉下来内嵌进 DLL(带 SHA-256 + Authenticode 校验)。
+      # 下载失败不阻塞构建 —— 缺它时 DLL 照常产出,只是装驱动改为运行期找磁盘上的安装器。
+      - name: Fetch optional third-party assets (Windows)
+        if: matrix.platform == 'windows-x64'
+        shell: pwsh
+        continue-on-error: true
+        run: powershell -ExecutionPolicy Bypass -File tool\fetch_assets.ps1
+
+      - name: Build (release)
+        shell: bash
+        env:
+          # README 承诺 macOS 12+;显式下限,避免用上 runner 默认值以上的系统 API。
+          MACOSX_DEPLOYMENT_TARGET: "12.0"
+        run: cargo build --release --target ${{ matrix.target }} -p hwprobe-dll -p hwprobe-cli
+
+      - name: Package artifacts
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+          REL="target/$TARGET/release"
+          STAGE="hwprobe-$VERSION-$PLATFORM"
+          mkdir -p "$STAGE"
+
+          cp -f README.md LICENSE include/hwprobe.h "$STAGE/"
+
+          case "$PLATFORM" in
+            windows-x64)
+              cp -f "$REL/hwprobe.dll" "$STAGE/"
+              # 导入库 hwprobe.dll.lib 发布时统一改名单后缀 hwprobe.lib(见 Makefile)
+              if [ -f "$REL/hwprobe.dll.lib" ]; then cp -f "$REL/hwprobe.dll.lib" "$STAGE/hwprobe.lib"; fi
+              cp -f "$REL/hwprobe-cli.exe" "$STAGE/"
+              7z a -tzip "$STAGE.zip" "$STAGE" >/dev/null
+              echo "ASSET=$STAGE.zip" >> "$GITHUB_ENV"
+              ;;
+            *)
+              case "$PLATFORM" in
+                macos-*) LIB="libhwprobe.dylib" ;;
+                *)       LIB="libhwprobe.so" ;;
+              esac
+              cp -f "$REL/$LIB" "$STAGE/"
+              cp -f "$REL/hwprobe-cli" "$STAGE/"
+              tar -czf "$STAGE.tar.gz" "$STAGE"
+              echo "ASSET=$STAGE.tar.gz" >> "$GITHUB_ENV"
+              ;;
+          esac
+
+          echo "==> 产物:" && ls -lh "$ASSET" 2>/dev/null || ls -lh "$STAGE".*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hwprobe-${{ matrix.platform }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+
+  release:
+    name: publish release
+    needs: build
+    # 只有打标签才发布;workflow_dispatch 仅验证构建。
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: |
+          sha256sum hwprobe-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: hwprobe ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/hwprobe-*
+            dist/SHA256SUMS

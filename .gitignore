@@ -14,6 +14,8 @@
 examples/cs-demo/bin/
 examples/cs-demo/obj/
 examples/py-demo/__pycache__/
+examples/go-demo/hwprobe-demo
+examples/go-demo/hwprobe-demo.exe
 
 # ---- Fetched (not vendored) binary assets ----
 # The official PawnIO installer is a 3.4 MB signed third-party executable; it is

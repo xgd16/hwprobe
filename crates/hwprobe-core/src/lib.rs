@@ -29,7 +29,8 @@ pub mod platform;
 /// - `2`:新增订阅推送(`hwprobe_subscribe` / `hwprobe_unsubscribe`)
 /// - `3`:新增 `Display`(7)/ `IMU`(8)类别
 /// - `4`:新增 `hwprobe_set_usage_mode`(占用口径切换)与 GPU 分引擎传感器 `util_eng_*`
-pub const HWPROBE_ABI_VERSION: u32 = 4;
+/// - `5`:新增状态码 `HWPROBE_NO_PERMISSION`(权限不足;macOS 上 NVMe SMART / 部分 SMC 键需要 root)
+pub const HWPROBE_ABI_VERSION: u32 = 5;
 
 pub use model::{
     Category, DeviceBuilder, DeviceData, DeviceMeta, Reading, SensorData, SensorDesc, SensorKind,

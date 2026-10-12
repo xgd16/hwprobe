@@ -439,7 +439,7 @@ pub fn build_on_worker() -> Result<(Box<dyn crate::traits::PlatformBackend>, Arc
         .name("hwprobe-init".into())
         .spawn(move || {
             let result = (|| {
-                let mut backend = crate::create_backend()?;
+                let backend = crate::create_backend()?;
                 if let Err(e) = backend.init() {
                     logbuf::warn(format!("平台增强层初始化失败(相关传感器将标记 NO_DRIVER): {e}"));
                 }

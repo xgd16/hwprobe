@@ -1,6 +1,7 @@
-#![cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+mod win_probe {
 use std::sync::Arc;
-fn main() {
+pub fn main() {
     println!("stage: build_on_worker");
     let (_backend, registry) = hwprobe_core::registry::build_on_worker().unwrap();
     println!("stage: spawn_poller");
@@ -12,4 +13,15 @@ fn main() {
     println!("stage: refresh all");
     r.refresh(None);
     println!("ALL DONE");
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }

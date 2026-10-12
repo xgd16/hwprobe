@@ -1,5 +1,6 @@
+#[cfg(target_os = "windows")]
+mod win_probe {
 //! 诊断:哪些 PDH 计数器对象真实存在
-#![cfg(target_os = "windows")]
 use windows::Win32::System::Performance::*;
 
 fn wide0(s: &str) -> Vec<u16> { s.encode_utf16().chain(std::iter::once(0)).collect() }
@@ -41,7 +42,7 @@ fn try_add(path: &str) {
     }
 }
 
-fn main() {
+pub fn main() {
     try_add(r"Processor Information(*)% Processor Utility");
     try_add(r"Processor Information(*)% Processor Time");
     try_add(r"Processor(*)% Processor Time");
@@ -49,4 +50,15 @@ fn main() {
     try_add(r"PhysicalDisk(*)Disk Read Bytes/sec");
     try_add(r"GPU Engine(*)TILIZATION PERCENTAGE");
     try_add(r"GPU Adapter Memory(*)Dedicated Usage");
+}
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    win_probe::main();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    eprintln!("本探针仅支持 Windows");
 }
