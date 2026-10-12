@@ -100,7 +100,7 @@ jobs:
               if [ -f "$REL/hwprobe.dll.lib" ]; then cp -f "$REL/hwprobe.dll.lib" "$STAGE/hwprobe.lib"; fi
               cp -f "$REL/hwprobe-cli.exe" "$STAGE/"
               7z a -tzip "$STAGE.zip" "$STAGE" >/dev/null
-              echo "ASSET=$STAGE.zip" >> "$GITHUB_ENV"
+              ASSET="$STAGE.zip"
               ;;
             *)
               case "$PLATFORM" in
@@ -110,11 +110,13 @@ jobs:
               cp -f "$REL/$LIB" "$STAGE/"
               cp -f "$REL/hwprobe-cli" "$STAGE/"
               tar -czf "$STAGE.tar.gz" "$STAGE"
-              echo "ASSET=$STAGE.tar.gz" >> "$GITHUB_ENV"
+              ASSET="$STAGE.tar.gz"
               ;;
           esac
 
-          echo "==> 产物:" && ls -lh "$ASSET" 2>/dev/null || ls -lh "$STAGE".*
+          # ASSET 要在同一 step 内就绪:GITHUB_ENV 只对后续 step 生效。
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
+          echo "==> 产物:" && ls -lh "$ASSET"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
